@@ -24,20 +24,29 @@ from tqdm import tqdm
 from utils import *
 from matching import orb_matching
 import argparse
+import cv2
 
 # visualization
 def display_pose(imgdir, visdir, tracked, cmap):
 
     print("Start visualization...\n")
+    fourcc=cv2.VideoWriter_fourcc(*'XVID')
+    fps=24
+    #w=644 porque o output da imagem sai em 644, nao sei porque 
+    frameSize=(644,480)
+    
+    img_vec = [None] * 9
+    json_vec = [None] * 9
+
     for imgname in tqdm(tracked.keys()):
-        img = Image.open(os.path.join(imgdir,imgname))
-        width, height = img.size
-        fig = plt.figure(figsize=(width/10,height/10),dpi=10)
-        plt.imshow(img)
+        
+       
+        ponto_inicial = ()
         for pid in range(len(tracked[imgname])):
+            
             pose = np.array(tracked[imgname][pid]['keypoints']).reshape(-1,3)[:,:3]
             tracked_id = tracked[imgname][pid]['idx']
-
+            tmp_tracker = []
             # keypoint scores of torch version and pytorch version are different
             if np.mean(pose[:,2]) <1 :
                 alpha_ratio = 1.0
@@ -45,12 +54,14 @@ def display_pose(imgdir, visdir, tracked, cmap):
                 alpha_ratio = 5.0
 
             if pose.shape[0] == 16:
+                print("parte errada")
                 mpii_part_names = ['RAnkle','RKnee','RHip','LHip','LKnee','LAnkle','Pelv','Thrx','Neck','Head','RWrist','RElbow','RShoulder','LShoulder','LElbow','LWrist']
                 colors = ['m', 'b', 'b', 'r', 'r', 'b', 'b', 'r', 'r', 'm', 'm', 'm', 'r', 'r','b','b']
                 pairs = [[8,9],[11,12],[11,10],[2,1],[1,0],[13,14],[14,15],[3,4],[4,5],[8,7],[7,6],[6,2],[6,3],[8,12],[8,13]]
                 for idx_c, color in enumerate(colors):
                     plt.plot(np.clip(pose[idx_c,0],0,width), np.clip(pose[idx_c,1],0,height), marker='o', 
                             color=color, ms=80/alpha_ratio*np.mean(pose[idx_c,2]), markerfacecolor=(1, 1, 0, 0.7/alpha_ratio*pose[idx_c,2]))
+
                 for idx in range(len(pairs)):
                     plt.plot(np.clip(pose[pairs[idx],0],0,width),np.clip(pose[pairs[idx],1],0,height), 'r-',
                             color=cmap(tracked_id), linewidth=60/alpha_ratio*np.mean(pose[pairs[idx],2]),  alpha=0.6/alpha_ratio*np.mean(pose[pairs[idx],2]))
@@ -58,21 +69,78 @@ def display_pose(imgdir, visdir, tracked, cmap):
                 coco_part_names = ['Nose','LEye','REye','LEar','REar','LShoulder','RShoulder','LElbow','RElbow','LWrist','RWrist','LHip','RHip','LKnee','RKnee','LAnkle','RAnkle']
                 colors = ['r', 'r', 'r', 'r', 'r', 'y', 'y', 'y', 'y', 'y', 'y', 'g', 'g', 'g','g','g','g']
                 pairs = [[0,1],[0,2],[1,3],[2,4],[5,6],[5,7],[7,9],[6,8],[8,10],[11,12],[11,13],[13,15],[12,14],[14,16],[6,12],[5,11]]
+                if(json_vec[tracked_id] == None):
+                    ponto_inicial = (pose[5,0],pose[5,1]) #Ombro esquerdo é o centro
+                else:
+                    ponto_inicial = json_vec[tracked_id]['ponto_inicial']
+                body_part_dic = {
+                    'Nose':'',
+                    'LEye':'',
+                    'REye':'',
+                    'LEar':'',
+                    'REar':'',
+                    'LShoulder':'',
+                    'RShoulder':'',
+                    'LElbow':'',
+                    'RElbow':'',
+                    'LWrist':'',
+                    'RWrist':'',
+                    'LHip':'',
+                    'RHip':'',
+                    'LKnee':'',
+                    'RKnee':'',
+                    'LAnkle':'',
+                    'RAnkle':''
+                }
+                
+                img = Image.open(os.path.join(imgdir,imgname))
+                width, height = img.size
+                fig = plt.figure(figsize=(width/10,height/10),dpi=10)
+                plt.imshow(img)
+
                 for idx_c, color in enumerate(colors):
+                    #vec_point_plot.append([np.clip(pose[idx_c,0],0,width), np.clip(pose[idx_c,1],0,height)])
                     plt.plot(np.clip(pose[idx_c,0],0,width), np.clip(pose[idx_c,1],0,height), marker='o', 
-                            color=color, ms=80/alpha_ratio*np.mean(pose[idx_c,2]), markerfacecolor=(1, 1, 0, 0.7/alpha_ratio*pose[idx_c,2]))
+                            color=color, ms=80/alpha_ratio*np.mean(pose[idx_c,2]), markerfacecolor=(1, 1, 0, 0.7/alpha_ratio*pose[idx_c,2])) 
+                    body_part_dic[coco_part_names[idx_c]] = (ponto_inicial[0] - pose[idx_c,0],ponto_inicial[1] - pose[idx_c,1])
+                    tmp_tracker.append((ponto_inicial[0] - pose[idx_c,0],ponto_inicial[1] - pose[idx_c,1]))
                 for idx in range(len(pairs)):
                     plt.plot(np.clip(pose[pairs[idx],0],0,width),np.clip(pose[pairs[idx],1],0,height),'r-',
                             color=cmap(tracked_id), linewidth=60/alpha_ratio*np.mean(pose[pairs[idx],2]), alpha=0.6/alpha_ratio*np.mean(pose[pairs[idx],2]))
-        plt.axis('off')
-        ax = plt.gca()
-        ax.set_xlim([0,width])
-        ax.set_ylim([height,0])
-        extent = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
-        if not os.path.exists(visdir): 
-            os.mkdir(visdir)
-        fig.savefig(os.path.join(visdir,imgname.split()[0]+".png"), pad_inches = 0.0, bbox_inches=extent, dpi=13)
-        plt.close()
+                
+                plt.axis('off')
+                ax = plt.gca()
+                ax.set_xlim([0,width])
+                ax.set_ylim([height,0])
+                extent = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+                if not os.path.exists(visdir): 
+                    os.mkdir(visdir)
+                
+                fig.savefig(os.path.join(visdir,"out/tmp.png"), pad_inches = 0.0, bbox_inches=extent, dpi=13)
+                plt.close()
+                img = cv2.imread(os.path.join(visdir,"out/tmp.png"))
+        
+                if (img_vec[tracked_id] == None or json_vec[tracked_id] == None):
+                    img_vec[tracked_id] = [img]
+                    json_vec[tracked_id] = {
+                        'acao': '',
+                        'pontos': [body_part_dic],
+                        'ponto_inicial': ponto_inicial,
+                        'index': tracked_id
+                    }
+                else:
+                    img_vec[tracked_id].append(img)
+                    json_vec[tracked_id]['pontos'].append(body_part_dic)
+
+    for i in range(1,len(json_vec)):
+        if (json_vec[i] is not None and len(json_vec[i]['pontos']) > 5) :
+            with open((os.path.join(visdir,'out/vid1-index'+str(i)+'.json')), 'w') as f:
+                json.dump(json_vec[i], f, ensure_ascii=False)
+        if(img_vec[i] is not None and len(img_vec[i])> 5):
+            stream = cv2.VideoWriter(os.path.join(visdir,'out/vid1-index'+str(i)+'.avi'), fourcc, fps, frameSize)
+            for j in range(len(img_vec[i])):
+                stream.write(img_vec[i][j])
+            stream.release()
 
 
 if __name__ == '__main__':
@@ -120,7 +188,7 @@ if __name__ == '__main__':
 
         with open(notrack_json) as f:
             results = json.load(f)
-            for i in xrange(len(results)):
+            for i in range(len(results)):
                 imgpath = results[i]['image_id']
                 if last_image_name != imgpath:
                     results_forvis[imgpath] = []
@@ -169,7 +237,7 @@ if __name__ == '__main__':
             for pid in range(1, track[frame_name]['num_boxes']+1):
                     track[frame_name][pid]['new_pid'] = pid
                     track[frame_name][pid]['match_score'] = 0
-
+        
         max_pid_id = max(max_pid_id, track[frame_name]['num_boxes'])
         cor_file = os.path.join(image_dir, "".join([frame_id, '_', next_frame_id, '_orb.txt']))
        

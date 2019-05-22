@@ -38,7 +38,8 @@ def get_box(pose, imgpath):
     ymin = np.min(pose[:,1])
     ymax = np.max(pose[:,1])
     
-    img_height, img_width, _ = cv.imread(imgpath).shape
+    img_height, img_width = 480,644
+    #img_height, img_width, _ = cv.imread(imgpath).shape
 
     return expand_bbox(xmin, xmax, ymin, ymax, img_width, img_height)
 

@@ -1,5 +1,6 @@
 import cv2
 import os
+from tqdm import tqdm
 
 def video_to_frames(video, path_output_dir):
     # extract frames from a video and save to directory as 'x.png' where 
@@ -17,4 +18,18 @@ def video_to_frames(video, path_output_dir):
     vidcap.release()
 
 if __name__ == "__main__":
-    video_to_frames("samples/001.wmv", "output/tmp")
+   
+    #for i in tqdm(range(1,53)):
+    #    index = ''
+    ##   if(i<10):
+    #        index = '00'+str(i)
+    #    elif(i<100):
+    #        index = '0'+str(i)
+    #    else:
+    #        index = str(i)
+
+    #if not os.path.exists("output/sem_violencia/"+str(i)+"/vis/"):
+    #    os.mkdir("output/sem_violencia/"+str(i)+"/vis/")
+    ##video_to_frames("samples/violencia/"+index+".wmv", "output/violencia/"+str(i)+"/vis/")
+    video_to_frames("samples/sem_violencia/033.wmv", "output/sem_violencia/33/vis/")
+        

@@ -24,123 +24,49 @@ from tqdm import tqdm
 from utils import *
 from matching import orb_matching
 import argparse
-import cv2
+import re
+
+def sorted_alphanumerically(l):
+    """ Sort the given iterable in the way that humans expect."""
+    convert = lambda text: int(text) if text.isdigit() else text
+    alphanum_key = lambda key: [ convert(c) for c in re.split('([0-9]+)', key) ]
+    return sorted(l, key = alphanum_key)
+
 
 # visualization
-def display_pose(imgdir, visdir, tracked, cmap, num_persons):
+def display_pose(imgdir, visdir, tracked, cmap):
 
     print("Start visualization...\n")
-    fourcc=cv2.VideoWriter_fourcc(*'XVID')
-    fps=24
-    width = 0 
-    height = 0
-    img_vec = [None] * (num_persons + 1)
-    json_vec = [None] * (num_persons + 1)
-    for imgname in tracked.keys():
-        
-       
-        ponto_inicial = ()
+    for imgname in tqdm(tracked.keys()):
+        img = Image.open(os.path.join(imgdir,imgname))
+        width, height = img.size
+        fig = plt.figure(figsize=(640/10,480/10),dpi=10)
         for pid in range(len(tracked[imgname])):
-            
             pose = np.array(tracked[imgname][pid]['keypoints']).reshape(-1,3)[:,:3]
             tracked_id = tracked[imgname][pid]['idx']
-            tmp_tracker = []
-            # keypoint scores of torch version and pytorch version are different
-            if np.mean(pose[:,2]) <1 :
-                alpha_ratio = 1.0
-            else:
-                alpha_ratio = 5.0
-
-            if pose.shape[0] == 16:
-                print("parte errada")
-                mpii_part_names = ['RAnkle','RKnee','RHip','LHip','LKnee','LAnkle','Pelv','Thrx','Neck','Head','RWrist','RElbow','RShoulder','LShoulder','LElbow','LWrist']
-                colors = ['m', 'b', 'b', 'r', 'r', 'b', 'b', 'r', 'r', 'm', 'm', 'm', 'r', 'r','b','b']
-                pairs = [[8,9],[11,12],[11,10],[2,1],[1,0],[13,14],[14,15],[3,4],[4,5],[8,7],[7,6],[6,2],[6,3],[8,12],[8,13]]
-                for idx_c, color in enumerate(colors):
-                    plt.plot(np.clip(pose[idx_c,0],0,width), np.clip(pose[idx_c,1],0,height), marker='o', 
-                            color=color, ms=80/alpha_ratio*np.mean(pose[idx_c,2]), markerfacecolor=(1, 1, 0, 0.7/alpha_ratio*pose[idx_c,2]))
-
-                for idx in range(len(pairs)):
-                    plt.plot(np.clip(pose[pairs[idx],0],0,width),np.clip(pose[pairs[idx],1],0,height), 'r-',
-                            color=cmap(tracked_id), linewidth=60/alpha_ratio*np.mean(pose[pairs[idx],2]),  alpha=0.6/alpha_ratio*np.mean(pose[pairs[idx],2]))
-            elif pose.shape[0] == 17:
-                coco_part_names = ['Nose','LEye','REye','LEar','REar','LShoulder','RShoulder','LElbow','RElbow','LWrist','RWrist','LHip','RHip','LKnee','RKnee','LAnkle','RAnkle']
-                colors = ['r', 'r', 'r', 'r', 'r', 'y', 'y', 'y', 'y', 'y', 'y', 'g', 'g', 'g','g','g','g']
-                pairs = [[0,1],[0,2],[1,3],[2,4],[5,6],[5,7],[7,9],[6,8],[8,10],[11,12],[11,13],[13,15],[12,14],[14,16],[6,12],[5,11]]
-                if(json_vec[tracked_id] == None):
-                    ponto_inicial = (pose[5,0],pose[5,1]) #Ombro esquerdo é o centro
+            if(int(tracked_id) == 1):
+                # keypoint scores of torch version and pytorch version are different
+                if np.mean(pose[:,2]) <1 :
+                    alpha_ratio = 1.0
                 else:
-                    ponto_inicial = json_vec[tracked_id]['ponto_inicial']
-                body_part_dic = {
-                    'Nose':'',
-                    'LEye':'',
-                    'REye':'',
-                    'LEar':'',
-                    'REar':'',
-                    'LShoulder':'',
-                    'RShoulder':'',
-                    'LElbow':'',
-                    'RElbow':'',
-                    'LWrist':'',
-                    'RWrist':'',
-                    'LHip':'',
-                    'RHip':'',
-                    'LKnee':'',
-                    'RKnee':'',
-                    'LAnkle':'',
-                    'RAnkle':''
-                }
-                
-                img = Image.open(os.path.join(imgdir,imgname))
-                width, height = img.size
-                fig = plt.figure(figsize=(width/10,height/10),dpi=10)
-                plt.imshow(img)
+                    alpha_ratio = 5.0
 
-                for idx_c, color in enumerate(colors):
-                    #vec_point_plot.append([np.clip(pose[idx_c,0],0,width), np.clip(pose[idx_c,1],0,height)])
-                    plt.plot(np.clip(pose[idx_c,0],0,width), np.clip(pose[idx_c,1],0,height), marker='o', 
-                            color=color, ms=80/alpha_ratio*np.mean(pose[idx_c,2]), markerfacecolor=(1, 1, 0, 0.7/alpha_ratio*pose[idx_c,2])) 
-                    body_part_dic[coco_part_names[idx_c]] = ( pose[idx_c,0]-ponto_inicial[0], pose[idx_c,1] - ponto_inicial[1])
-                    tmp_tracker.append((pose[idx_c,0]-ponto_inicial[0] , pose[idx_c,1]-ponto_inicial[1]))
-                for idx in range(len(pairs)):
-                    plt.plot(np.clip(pose[pairs[idx],0],0,width),np.clip(pose[pairs[idx],1],0,height),'r-',
-                            color=cmap(tracked_id), linewidth=60/alpha_ratio*np.mean(pose[pairs[idx],2]), alpha=0.6/alpha_ratio*np.mean(pose[pairs[idx],2]))
+                if pose.shape[0] == 17:
+                    colors = ['r', 'r', 'r', 'r', 'r', 'y', 'y', 'y', 'y', 'y', 'y', 'g', 'g', 'g','g','g','g']
+                    for idx_c, color in enumerate(colors):
+                        plt.plot(pose[idx_c,0], pose[idx_c,1], marker='o', 
+                                color=color, ms=80/alpha_ratio*np.mean(pose[idx_c,2]), markerfacecolor=(1, 1, 0, 0.7/alpha_ratio*pose[idx_c,2]))
+                    plt.show()
                 
-                plt.axis('off')
-                ax = plt.gca()
-                ax.set_xlim([0,width])
-                ax.set_ylim([height,0])
-                extent = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
-                if not os.path.exists(visdir): 
-                    os.mkdir(visdir)
-                
-                fig.savefig(os.path.join(visdir,str(args.video_index)+"tmp.png"), pad_inches = 0.0, bbox_inches=extent, dpi=13)
-                plt.close()
-                img = cv2.imread(os.path.join(visdir,str(args.video_index)+"tmp.png"))
-                width, height, _ = img.shape
-                if (img_vec[tracked_id] == None or json_vec[tracked_id] == None):
-                    img_vec[tracked_id] = [img]
-                    json_vec[tracked_id] = {
-                        'acao': '',
-                        'pontos': [body_part_dic],
-                        'ponto_inicial': ponto_inicial,
-                        'index': tracked_id
-                    }
-                else:
-                    img_vec[tracked_id].append(img)
-                    json_vec[tracked_id]['pontos'].append(body_part_dic)
-    print("gerando videos")
-    for i in range(1,len(json_vec)):
-        
-        if (json_vec[i] is not None and len(json_vec[i]['pontos']) > 24) :
-            with open((os.path.join(visdir,'vid'+str(args.video_index)+'id'+str(i)+'.json')), 'w') as f:
-                json.dump(json_vec[i], f, ensure_ascii=False)
-        if(img_vec[i] is not None and len(img_vec[i])> 24):
-            stream = cv2.VideoWriter(os.path.join(visdir, 'vid'+str(args.video_index)+'id'+str(i)+'.avi'), fourcc, fps, (height,width))
-            for j in range(len(img_vec[i])):
-                stream.write(img_vec[i][j])
-            stream.release()
-    print("Videos gerados") 
+        plt.axis('off')
+        ax = plt.gca()
+        ax.set_xlim([0,width])
+        ax.set_ylim([height,0])
+        extent = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+        if not os.path.exists(visdir): 
+            os.mkdir(visdir)
+        fig.savefig(os.path.join(visdir,imgname.split(".")[0]+".png"), pad_inches = 0.0, bbox_inches=extent, dpi=13)
+        plt.close()
 
 
 if __name__ == '__main__':
@@ -156,8 +82,6 @@ if __name__ == '__main__':
     parser.add_argument('--num', type=int, default=7)
     parser.add_argument('--mag', type=int, default=30)
     parser.add_argument('--match', type=float, default=0.2)
-    parser.add_argument('--video_index', type=int, default=1)
-
 
     args = parser.parse_args()
 
@@ -210,7 +134,7 @@ if __name__ == '__main__':
     print("Start loading json file...\n")
     with open(notrack_json,'r') as f:
         notrack = json.load(f)
-        for img_name in sorted(notrack.keys()):
+        for img_name in tqdm(sorted_alphanumerically(notrack.keys())):
             track[img_name] = {'num_boxes':len(notrack[img_name])}
             for bid in range(len(notrack[img_name])):
                 track[img_name][bid+1] = {}
@@ -224,10 +148,9 @@ if __name__ == '__main__':
 
     # tracking process
     max_pid_id = 0
-    frame_list = sorted(list(track.keys()))
-
+    frame_list = sorted_alphanumerically(list(track.keys()))
     print("Start pose tracking...\n")
-    for idx, frame_name in enumerate(frame_list[:-1]):
+    for idx, frame_name in enumerate(tqdm(frame_list[:-1])):
         frame_new_pids = []
         frame_id = frame_name.split(".")[0]
 
@@ -239,7 +162,7 @@ if __name__ == '__main__':
             for pid in range(1, track[frame_name]['num_boxes']+1):
                     track[frame_name][pid]['new_pid'] = pid
                     track[frame_name][pid]['match_score'] = 0
-        
+
         max_pid_id = max(max_pid_id, track[frame_name]['num_boxes'])
         cor_file = os.path.join(image_dir, "".join([frame_id, '_', next_frame_id, '_orb.txt']))
        
@@ -284,7 +207,7 @@ if __name__ == '__main__':
 
     # export tracking result into notrack json files
     print("Export tracking results to json...\n")
-    for fid, frame_name in enumerate(frame_list):
+    for fid, frame_name in enumerate(tqdm(frame_list)):
         for pid in range(track[frame_name]['num_boxes']):
             notrack[frame_name][pid]['idx'] = track[frame_name][pid+1]['new_pid']
 
@@ -293,4 +216,4 @@ if __name__ == '__main__':
 
     if len(args.visdir)>0:
         cmap = plt.cm.get_cmap("hsv", num_persons)
-        display_pose(image_dir, vis_dir, notrack, cmap,num_persons)
+        display_pose(image_dir, vis_dir, notrack, cmap)

@@ -551,7 +551,7 @@ class WebcamLoader:
     def __init__(self, webcam, queueSize=256):
         # initialize the file video stream along with the boolean
         # used to indicate if the thread should be stopped or not
-        self.stream = cv2.VideoCapture(int(webcam))
+        self.stream = cv2.VideoCapture(webcam)
         assert self.stream.isOpened(), 'Cannot capture source'
         self.stopped = False
         # initialize the queue used to store frames read from
